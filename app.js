@@ -6,7 +6,7 @@ var slack = require('slack-notify')(process.env.SLACK_WEBHOOK_URL);
 
 var AVAIL_URL = 'https://ws.ovh.com/dedicated/r2/ws.dispatcher/getAvailability2';
 var BUY_URL = 'https://www.kimsufi.com/en/order/kimsufi.cgi?hard=$SERVER';
-var serversToCheck = ['150sk10'];//, '150sk20'];
+var serversToCheck = ['150sk30'];//, '150sk20'];
 checkAvail(serversToCheck);
 // checkLocal(serversToCheck);
 
