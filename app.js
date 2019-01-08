@@ -1,61 +1,72 @@
 'use strict';
 
-var fs = require('fs');
-var request = require('request');
-var slack = require('slack-notify')(process.env.SLACK_WEBHOOK_URL);
+const fs = require('fs');
+const request = require('request');
 
-var AVAIL_URL = 'https://ws.ovh.com/dedicated/r2/ws.dispatcher/getAvailability2';
-var BUY_URL = 'https://www.kimsufi.com/en/order/kimsufi.cgi?hard=$SERVER';
-var serversToCheck = ['150sk30'];//, '150sk20'];
-checkAvail(serversToCheck);
-// checkLocal(serversToCheck);
+const AVAIL_URL = 'https://www.ovh.com/engine/api/dedicated/server/availabilities?country=fr';
+const BUY_URL = 'https://www.kimsufi.com/fr/commande/kimsufi.xml?reference=$SERVER';
 
-function checkLocal(servers) {
+const PUSHOVER_URL = 'https://api.pushover.net/1/messages.json';
+const PUSHOVER_USER = process.env.KS_PUSHOVER_USER;
+const PUSHOVER_TOKEN = process.env.KS_PUSHOVER_TOKEN;
+
+const SERVER_TO_CHECK = process.env.KS_SERVER // '1801sk17'; // '150sk20';
+const DATACENTERS_FR = ['gra', 'rbx', 'sbg'];
+
+if (!PUSHOVER_USER) {
+  console.error('$KS_PUSHOVER_USER is missing');
+  return
+}
+if (!PUSHOVER_TOKEN) {
+  console.error('$KS_PUSHOVER_TOKEN is missing');
+  return
+}
+if (!SERVER_TO_CHECK) {
+  console.error('$KS_SERVER is missing');
+  return
+}
+
+checkOnline(SERVER_TO_CHECK);
+// checkLocal(SERVER_TO_CHECK);
+
+function checkLocal(server) {
   fs.readFile('./example.json', function (err, data) {
     if (err) return console.error(err);
-    var json = JSON.parse(data);
-    var output = formatOutput(servers, json.answer.availability);
-    sendSlack(output);
+    const servers = JSON.parse(data);
+    checkAvail(servers, server);
   });
 }
 
-function checkAvail(servers) {
+function checkOnline(server) {
   request.get(AVAIL_URL, function (err, response, body) {
     if (err) return console.error(err);
     if (response.statusCode !== 200) return console.log('Status', response.statusCode);
     if (response.statusCode === 200) {
-      var json = JSON.parse(body);
-      var output = formatOutput(servers, json.answer.availability);
-      sendSlack(output);
+      var servers = JSON.parse(body);
+      checkAvail(servers, server);
     }
   });
 }
 
-function formatOutput(servers, availabilityList) {
-  var lines = [];
-  availabilityList.forEach(function (avail) {
-    if (servers.indexOf(avail.reference) < 0) return;
-    var availZones = [];
-    avail.zones.forEach(function (zone) {
-      if (zone.availability !== 'unknown') availZones.push(zone.zone + ' ('+ zone.availability + ')');
-    });
-
-    if (availZones.length > 0) {
-      lines.push('*<' + BUY_URL.replace('$SERVER', avail.reference) + '|' + avail.reference + '>*');
-      lines.push(availZones.join(' - '));
-    }
-  });
-
-  return lines.join('\n');
+function isAvail(servers, server) {
+  return servers.find(s => s.region == 'europe' && s.hardware == server && s.datacenters.find(dc => DATACENTERS_FR.includes(dc.datacenter) && dc.availability != 'unavailable') );
 }
 
-function sendSlack(output) {
-  if (!output) return;
-  slack.send({
-    channel: '@maxence',
-    icon_url: 'http://www.kimsufi.com/uk/images/about-ks/ovh.png',
-    text: output,
-    unfurl_links: 0,
-    username: 'Kimsufi'
+function checkAvail(servers, server) {
+  const isAvailable = isAvail(servers, server);
+  if (isAvailable) {
+    console.log(`Server ${server} is available!`);
+    sendCallback(`Server ${server} is available!`, BUY_URL.replace('$SERVER', server));
+  } else {
+    console.log(`Server ${server} is NOT available...`);
+  }
+}
+
+function sendCallback(message, url) {
+  request.post(PUSHOVER_URL).form({
+    user: PUSHOVER_USER,
+    token: PUSHOVER_TOKEN,
+    message: message,
+    url: url,
   });
 }

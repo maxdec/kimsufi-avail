@@ -1,7 +1,7 @@
- {
+{
   "name": "kimsufi-avail",
   "version": "0.0.0",
-  "description": "Script that checks Kimsufi servers availability and send a Slack notification if some are currently available.",
+  "description": "Script that checks Kimsufi servers availability and send a Pushover notification if some are currently available.",
   "main": "app.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -10,7 +10,6 @@
   "author": "Maxence Decrosse",
   "license": "MIT",
   "dependencies": {
-    "request": "^2.53.0",
-    "slack-notify": "^0.1.4"
+    "request": "^2.88.0"
   }
 }
